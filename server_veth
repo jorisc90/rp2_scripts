@@ -1,0 +1,10 @@
+#!/bin/bash
+if [ -z "$1" ]; then 
+  echo "Enter number of containers to be created:"
+  exit 1
+fi
+for ((i=1; i<=$1; i++)); do
+  echo "Creating server iperf3_s_$i listening on port $((5200+$i))..."
+  docker run -dit --name=iperf3_s_$i -p $((5200+$i)):$((5200+$i)) -p $((5200+$i)):$((5200+$i))/udp iperf/test
+  docker exec iperf3_s_$i iperf3 -s -p $((5200+$i)) -D
+done

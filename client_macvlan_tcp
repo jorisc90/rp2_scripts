@@ -1,0 +1,28 @@
+#!/bin/bash
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+  echo "run ./script <number of containers> <mtu> <number of times to run>"
+  exit 1
+fi
+
+for (( i=1; i <= $1; i++ ))
+do
+  echo "Creating client iperf3_c_$i ..."
+  docker run -dit --net=none --name=iperf3_c_$i iperf/iperf
+  wait
+  echo "Attaching pipework macvlan interface 10.0.2.$i/16"
+  sudo ./pipework/pipework enp5s0 iperf3_c_$i 10.0.2.$i/16
+done
+wait
+sleep 5
+
+for (( j=1; j <= $3; j++ )); do
+  for (( i=1; i <= $1; i++ )); do
+    echo "Running iperf3 on client iperf3_c_$i for time $j..."
+    docker exec iperf3_c_$i iperf3 -c 10.0.1.$i -p 5201 -f m -O 1 -M $2 > iperf3_$i.log &
+  done
+  wait
+  for (( i=1; i <= $1; i++ )); do
+    cat iperf3_$i.log | awk 'FNR == 17 {print}' | awk -F" " '{print $5,",",$6","$7,",",$8}' >> ~/output_$1_$2_$3_$i.csv
+    cat iperf3_$i.log | awk 'FNR == 17 {print}' | awk -F" " '{print $5,",",$6","$7,",",$8}' >> ~/output_macvlan_total_$1_$2_$3.csv
+  done
+done

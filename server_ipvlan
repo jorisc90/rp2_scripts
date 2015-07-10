@@ -1,0 +1,19 @@
+#!/bin/bash
+if [ -z "$1" ]; then 
+  echo "Enter number of containers to be created:"
+  exit 1
+fi
+for ((i=1; i<=$1; i++)); do
+  echo "Creating server iperf3_s_$i listening on port 5201..."
+  docker run -dit --net=none --name=iperf3_s_$i iperf/iperf
+  echo "Attaching pipework ipvlan interface 10.0.1.$i/16"
+  sudo ./pipework/pipework enp5s0 --ipvlan iperf3_s_$i 10.0.1.$i/16
+done
+
+wait
+
+for (( i=1; i <= $1; i++ ))
+do
+  echo "Running iperf3 on server iperf3_s_$i"
+  docker exec iperf3_s_$i iperf3 -s -D
+done
